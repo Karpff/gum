@@ -1,0 +1,495 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<title>Gum</title>
+	<style>
+		html, body
+		{
+			width: 100%;
+			height: 100%;
+			margin: 0;
+			padding: 0;
+			overflow: hidden;
+			text-align: center;
+			background: #333333;
+
+		}
+
+		#container
+		{
+			width: 1000px;
+			height: 700px;
+			margin: auto;
+			position: relative;
+			background: #AADDFF;
+			overflow: hidden;
+		}
+
+		#orbit
+		{
+			height: 500px;
+			width: 500px;
+			position: absolute;
+			bottom: 150px;
+			right: 350px;
+			z-index: 5;
+		}
+
+		#shine
+		{
+			position: absolute;
+			bottom: 300px;
+			right: 575px;
+			width: 50px;
+			height: 200px;
+			border-radius: 10px;
+			box-shadow: 1px 1px 100px 150px white;
+		}
+
+		#hand
+		{
+			position: absolute;
+			right: 0;
+			bottom: 0;
+		}
+
+		#tensionBar
+		{
+			position: absolute;
+			left: 0;
+			width: 20px;
+			height: 700px;
+			background: rgba(0,0,0,0.5);
+		}
+
+		#tensionBarInner
+		{
+			position: absolute;
+			bottom: 0;
+			width: 20px;
+			height: 0;
+			background: #111111;
+		}
+
+		#powerBar
+		{
+			position: absolute;
+			left: 20px;
+			width: 70px;
+			height: 700px;
+			background: rgba(0,0,0,0.3);
+		}
+
+		#powerBarInner
+		{
+			height: 8px;
+			width: 68px;
+			position: absolute;
+			bottom: 0;
+			background: white;
+			border: 1px solid black;
+		}
+
+		#powerBarUnder
+		{
+			background: #FFFFFF;
+			height: 0;
+			position: absolute;
+			bottom: 0;
+			width: 70px;
+		}
+
+		#powerBarGood
+		{
+			background: #00FF00;
+			height: 0;
+			position: absolute;
+			bottom: 0;
+			width: 70px;
+		}
+
+		#powerBarOver
+		{
+			background: #00FFFF;
+			height: 0;
+			position: absolute;
+			bottom: 0;
+			width: 70px;
+		}
+
+		.gum
+		{
+			width: 70px;
+			height: 30px;
+			background: white;
+			border-radius: 5px;
+			position: absolute;
+			z-inder: 1;
+			box-shadow: 0 0 20px 0 rgba(0,0,0,0.5) inset;
+		}
+
+		#info
+		{
+			position: absolute;
+			right: 20px;
+			top: 100px;
+			font-size: 50px;
+			width: 400px;
+			color: #004477;
+			text-shadow: 3px 3px rgba(255,255,255,0.7);
+			font-family: verdana;
+			font-weight: bold;
+		}
+	</style>
+</head>
+<body>
+	<div id="container">
+		<div id="tensionBar"><div id="tensionBarInner"></div></div>
+		<div id="powerBar">
+			<div id="powerBarUnder"></div>
+			<div id="powerBarGood"></div>
+			<div id="powerBarOver"></div>
+			<div id="powerBarInner"></div>
+		</div>
+		<div id="info"></div>
+		<div id="shine"></div>
+		<img id="orbit" src="orbit.png">
+		<img id="hand" src="hand.png">
+
+	</div>
+
+	<script>
+
+	var shakeSfx = [document.createElement("AUDIO"),document.createElement("AUDIO"),document.createElement("AUDIO"),document.createElement("AUDIO")];
+	shakeSfx[0].innerHTML = '<source src="sounds/shake_1.mp3" type="audio/mp3">';
+	shakeSfx[1].innerHTML = '<source src="sounds/shake_2.mp3" type="audio/mp3">';
+	shakeSfx[2].innerHTML = '<source src="sounds/shake_3.mp3" type="audio/mp3">';
+	shakeSfx[3].innerHTML = '<source src="sounds/shake_4.mp3" type="audio/mp3">';
+	for(let i=0;i<4;i++)shakeSfx[i].volue = 0.2;
+
+	var dropSfx = [document.createElement("AUDIO"),document.createElement("AUDIO"),document.createElement("AUDIO")];
+	dropSfx[0].innerHTML = '<source src="sounds/drop_1.mp3" type="audio/mp3">';
+	dropSfx[1].innerHTML = '<source src="sounds/drop_2.mp3" type="audio/mp3">';
+	dropSfx[2].innerHTML = '<source src="sounds/drop_3.mp3" type="audio/mp3">';
+	for(let i=0;i<3;i++)dropSfx[i].volue = 0.2;
+
+	var perfectSfx = document.createElement("AUDIO");
+	perfectSfx.innerHTML = '<source src="sounds/lvlup.mp3" type="audio/mp3">';
+	perfectSfx.volume = 0.2;
+
+	var winSfx = document.createElement("AUDIO");
+	winSfx.innerHTML = '<source src="sounds/win.mp3" type="audio/mp3">';
+	winSfx.volume = 0.5;
+
+	var tieSfx = document.createElement("AUDIO");
+	tieSfx.innerHTML = '<source src="sounds/bonus.mp3" type="audio/mp3">';
+	tieSfx.volume = 0.5;
+
+	var lossSfx = document.createElement("AUDIO");
+	lossSfx.innerHTML = '<source src="sounds/cwel.mp3" type="audio/mp3">';
+	lossSfx.volume = 0.5;
+
+	function get(x)
+	{
+		return document.getElementById(x);
+	}
+
+	var charging = false;
+	var shaking = false;
+	var barDir = 1.8;
+	var charge = 0;
+	var shake = 0;
+	var tilt = 0;
+	var handPos = 0;
+	var hiding = 0;
+	var timeout = 0;
+	var diff = 13;
+	var speed = 0;
+	var goodValue = 0;
+	var tensionPenalty = 0;
+	var frames = 0;
+
+	var gravity = 0.5;
+	var friends = 0;
+	var gumLeft = 25;
+	var tension = 0;
+
+	var perfect = [50,'#00BBEE','PERFECT!','FLAWLESS!','STINGY!'];
+	var nice = [40,'#00DD00','NICE','NOT BAD','PRETTY GOOD'];
+	var weak = [40,'#004477','OW!','DISCOMFORT? :v','GENEROUS!'];
+	var bad = [50,'#000000','WTF!?','SEIZURE?','MADMAN!'];
+
+	get("orbit").addEventListener("mousedown",function()
+	{
+		if(!shaking && shake == 0 && hiding == 0 && handPos >= 0 && timeout <= 0)
+		{
+			charging = true;
+			timeout = 50;
+		}
+	});
+
+	get("orbit").addEventListener("mouseup",function()
+	{
+		if(charging)
+		{
+			release();
+		}
+	});
+
+	function release()
+	{
+		charging = false;
+		var power = charge;
+		charge = 0;
+		shaking = true;
+
+		if(gumLeft > 0)
+		{
+			if(power >= goodValue+1)
+			{
+				if(power <= goodValue+diff)
+				{
+
+					gums[gumLeft-1].shek();
+					gumLeft--;
+					tension-=tension*0.1 + 2;
+					get("info").style.color = perfect[1];
+					get("info").style.fontSize = perfect[0]+"px";
+					get("info").innerHTML = perfect[parseInt(Math.random()*3+2)];
+					dropSfx[0].play();
+					perfectSfx.play();
+					perfectSfx = document.createElement("AUDIO");
+					perfectSfx.innerHTML = '<source src="sounds/lvlup.mp3" type="audio/mp3">';
+					perfectSfx.volume = 0.2;
+				}
+				else
+				{
+					var moreGum = parseInt((power - goodValue)/10)+2;
+					for(var i=0;i<moreGum;i++)
+					{
+						if(gumLeft > 0)
+						{
+							gums[gumLeft-1].shek();
+							gumLeft--;
+							if(moreGum < 4)
+							{
+								get("info").style.color = nice[1];
+								get("info").style.fontSize = nice[0]+"px";
+								get("info").innerHTML = nice[parseInt(Math.random()*3+2)];
+								dropSfx[1].play();
+								tension-=tension*0.05 + 1;
+							}
+							else if(moreGum < 6)
+							{
+								get("info").style.color = weak[1];
+								get("info").style.fontSize = weak[0]+"px";
+								get("info").innerHTML = weak[parseInt(Math.random()*3+2)];
+								dropSfx[2].play();
+								tension+=moreGum-1;
+							}
+							else
+							{
+								get("info").style.color = bad[1];
+								get("info").style.fontSize = bad[0]+"px";
+								get("info").innerHTML = bad[parseInt(Math.random()*3+2)];
+								dropSfx[2].play();
+								tension+=moreGum-1;
+							}
+						}
+					}
+				}
+				diff-=0.4;
+				friends++;
+			}
+			else
+			{
+				tension+=10;
+				timeout = 0;
+				get("info").innerHTML = "";
+				shakeSfx[parseInt(Math.random()*3)].play();
+			}
+		}
+		else
+		{
+			timeout = 0;
+		}
+		tilt = 0;
+		if(tension > 100)tension = 100;
+		if(tension < 1)tension = 1;
+		get("tensionBarInner").style.height = tension*7+"px"
+		if(gumLeft == 0)
+		{
+			get("info").style.color = bad[1];
+			get("info").style.fontSize = "40px";
+			get("info").innerHTML = "No more gum! You've managed to treat "+friends+" friends!";
+			if(friends >= 20)
+			{
+				winSfx.play();
+			}
+			else if(friends >= 15)
+			{
+				tieSfx.play();
+			}
+			else
+			{
+				lossSfx.play();
+			}
+		}
+	}
+
+	function gum(id)
+	{
+		this.id = id;
+		this.drop = this.id*40 + Math.random()*40;
+		this.spdX = 0;
+		this.spdY = 0;
+		this.rotation = 0;
+		this.x = Math.random()*-20;
+		this.y = Math.random()*-20;
+		this.tilt = 0;
+		this.gravity = gravity;
+		this.on = false;
+
+		this.update = function()
+		{
+			if(this.on)
+			{
+				this.spdY += this.gravity;
+				this.x += this.spdX;
+				this.y += this.spdY;
+				this.tilt += this.rotation;
+				if(this.y >= 330)
+				{
+					this.spdX = 0;
+					this.spdY = 0;
+					this.rotation = 0;
+					this.gravity = 0;
+					this.y = 329.9;
+					if(hiding <= 0)
+					{
+						hiding = 15;
+					}
+				}
+				if(hiding > 0)
+				{
+					this.x += 40;
+				}
+				get("gum"+this.id).style.left = this.x+500+"px";
+				get("gum"+this.id).style.top = this.y+200+"px";
+				get("gum"+this.id).style.transform = "rotate("+this.tilt+"deg)";
+			}
+		}
+
+		this.shek = function(x)
+		{
+			if(!this.on)
+			{
+				this.on = true;
+				this.spdX = Math.random()*3+9;
+				this.spdY = Math.random()*2+6;
+				this.rotation = Math.random()*2-1;
+				var div = document.createElement("div");
+				div.id = "gum"+this.id;
+				div.className = "gum";
+				get("container").appendChild(div);
+			}
+		}
+	}
+	var gums = [];
+
+	function hide()
+	{
+		if(hiding > 0)
+		{
+			handPos -= 40;
+			get("hand").style.right = handPos+"px";
+			hiding--;
+		}
+		else if(handPos < 0)
+		{
+			handPos += 40;
+			get("hand").style.right = handPos+"px";
+			if(handPos >= 0)
+			{
+				lvl();
+			}
+		}
+	}
+
+	function lvl()
+	{
+		goodValue = Math.random()*70+10;
+		get("powerBarUnder").style.height = goodValue*7+"px";
+		get("powerBarGood").style.bottom = goodValue*7+"px";
+		get("powerBarGood").style.height = diff*7+"px";
+		get("powerBarOver").style.bottom = (goodValue+diff)*7+"px";
+		get("powerBarOver").style.height = 700 - (goodValue+diff)*7+"px";
+	}
+
+	function init()
+	{
+		for(var i=0;i<25;i++)
+		{
+			gums.push(new gum(i));
+		}
+		lvl();
+	}
+	init();
+
+	function animate()
+	{
+		requestAnimationFrame(animate);
+		if(charging)
+		{
+			if(barDir > 0 && charge >= 100 || barDir < 0 && charge <= 0)
+			{
+				barDir = -barDir;
+			}
+			charge += barDir*(1+speed/100)+tensionPenalty;
+			get("powerBarInner").style.bottom = charge*7-10+"px";
+			if(tilt > -10)
+			{
+				tilt--;
+				get("orbit").style.transform = "rotate("+tilt+"deg)";
+			}
+			tension+=0.05;
+			if(tension > 100)tension = 100;
+			if(tension < 1)tension = 1;
+			get("tensionBarInner").style.height = tension*7+"px"
+		}
+		for(var i=0;i<25;i++)
+		{
+			gums[i].update();
+		}
+		if(shaking)
+		{
+			if(shake < 100)
+			{
+				shake += 20;
+				get("orbit").style.transform = "rotate("+shake+"deg)";
+			}
+			else
+			{
+				shaking = false;
+			}
+		}
+		else if(shake > 0)
+		{
+			shake -= 20;
+			get("orbit").style.transform = "rotate("+shake+"deg)";
+		}
+		hide();
+		if(timeout > 0)timeout--;
+		if(frames%5==0)
+		{
+			tensionPenalty = Math.random()*tension/24-tension/48;
+		}
+		frames++;
+	}
+	animate();
+
+	</script>
+
+</body>
+</html>
